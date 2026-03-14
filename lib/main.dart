@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 
 // --- ΠΑΓΚΟΣΜΙΑ ΜΝΗΜΗ ΕΦΑΡΜΟΓΗΣ ---
 // Τώρα η λίστα images αποθηκεύει Map (φωτογραφία ΚΑΙ κείμενο)
@@ -64,6 +66,65 @@ Future<void> saveTheme(bool isDark) async {
   await prefs.setBool('isDarkMode', isDark);
 }
 
+// -------------------------------------------------------------
+// IMAGE PREPROCESSING & OCR HELPERS
+// -------------------------------------------------------------
+
+/// Runs heavy image processing in a background isolate.
+/// Pipeline: grayscale → contrast boost → sharpen.
+img.Image _preprocessIsolate(img.Image source) {
+  // 1. Grayscale — removes color noise, helps OCR focus on text
+  img.grayscale(source);
+  // 2. Contrast boost — makes text pop against background
+  img.contrast(source, contrast: 150);
+  // 3. Sharpen — crisps up edges of characters
+  img.convolution(source, filter: [0, -1, 0, -1, 5, -1, 0, -1, 0], div: 1);
+  return source;
+}
+
+/// Preprocesses an image file for better OCR results.
+/// Returns the path to a temporary processed file.
+Future<String> preprocessImageForOCR(String originalPath) async {
+  final bytes = await File(originalPath).readAsBytes();
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return originalPath; // fallback to original
+
+  final processed = await compute(_preprocessIsolate, decoded);
+
+  final tempDir = await getTemporaryDirectory();
+  final processedPath = '${tempDir.path}/ocr_preprocessed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  await File(processedPath).writeAsBytes(img.encodeJpg(processed, quality: 100));
+
+  return processedPath;
+}
+
+/// Full OCR pipeline: preprocess + ML Kit recognition.
+/// Returns the extracted text string.
+Future<String> performOCR(String imagePath) async {
+  if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) {
+    return "Το OCR λειτουργεί μόνο στην Android/iOS συσκευή σου!";
+  }
+
+  // Preprocess image for better accuracy
+  final processedPath = await preprocessImageForOCR(imagePath);
+
+  // Run ML Kit text recognition
+  final inputImage = InputImage.fromFilePath(processedPath);
+  final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
+  final extractedText = recognizedText.text;
+  textRecognizer.close();
+
+  // Cleanup temp file
+  try {
+    if (processedPath != imagePath) {
+      await File(processedPath).delete();
+    }
+  } catch (_) {}
+
+  return extractedText;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await requestPermissions();
@@ -120,24 +181,23 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _openCamera() async {
     try {
-      final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 100,
+        preferredCameraDevice: CameraDevice.rear,
+      );
       if (photo != null) {
         if (mounted) {
           setState(() => _isProcessingOCR = true);
-          String extractedText = "";
 
-          if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ανάλυση εικόνας με AI... 🤖'), duration: Duration(seconds: 1), backgroundColor: Colors.cyan));
-            
-            final inputImage = InputImage.fromFilePath(photo.path);
-            final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-            final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
-            
-            extractedText = recognizedText.text;
-            textRecognizer.close();
-          } else {
-            extractedText = "Το OCR λειτουργεί μόνο στην Android/iOS συσκευή σου!";
-          }
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Ανάλυση εικόνας με AI... 🤖'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.cyan,
+          ));
+
+          // Use the new preprocessing + OCR pipeline
+          String extractedText = await performOCR(photo.path);
 
           setState(() => _isProcessingOCR = false);
           _showSaveBottomSheet(photo.path, extractedText);
@@ -485,17 +545,84 @@ class TopicDetailsScreen extends StatelessWidget {
 // -------------------------------------------------------------
 // ΟΘΟΝΗ 5: ΠΛΗΡΗΣ ΟΘΟΝΗ ΚΑΙ ΚΕΙΜΕΝΟ (Full Screen & OCR)
 // -------------------------------------------------------------
-class FullScreenImageScreen extends StatelessWidget {
+class FullScreenImageScreen extends StatefulWidget {
   final String imagePath;
   final String ocrText;
   
   const FullScreenImageScreen({super.key, required this.imagePath, required this.ocrText});
 
   @override
+  State<FullScreenImageScreen> createState() => _FullScreenImageScreenState();
+}
+
+class _FullScreenImageScreenState extends State<FullScreenImageScreen> {
+  late String _currentOcrText;
+  bool _isReScanning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentOcrText = widget.ocrText;
+  }
+
+  Future<void> _reRunOCR() async {
+    setState(() => _isReScanning = true);
+
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Επανάληψη ανάλυσης με AI... 🔄'),
+      duration: Duration(seconds: 2),
+      backgroundColor: Colors.cyan,
+    ));
+
+    try {
+      final newText = await performOCR(widget.imagePath);
+
+      // Update in global memory
+      for (var topic in globalUserTopics) {
+        List<dynamic> images = topic['images'];
+        for (var img in images) {
+          if (img['path'] == widget.imagePath) {
+            img['text'] = newText;
+            break;
+          }
+        }
+      }
+      await saveData(); // Persist the updated text
+
+      if (mounted) {
+        setState(() {
+          _currentOcrText = newText;
+          _isReScanning = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Το κείμενο ενημερώθηκε επιτυχώς! ✅'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      print("Σφάλμα re-OCR: $e");
+      if (mounted) {
+        setState(() => _isReScanning = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Αποτυχία ανάλυσης. Δοκίμασε ξανά.'),
+          backgroundColor: Colors.redAccent,
+        ));
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black, 
       appBar: AppBar(backgroundColor: Colors.black, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _isReScanning ? null : _reRunOCR,
+        backgroundColor: _isReScanning ? Colors.grey : Colors.cyan,
+        child: _isReScanning
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+            : const Icon(Icons.refresh, color: Colors.white),
+      ),
       body: Column(
         children: [
           // Το πάνω μέρος με τη φωτογραφία (πιάνει το 70% της οθόνης)
@@ -504,8 +631,8 @@ class FullScreenImageScreen extends StatelessWidget {
             child: InteractiveViewer(
               panEnabled: true, minScale: 0.5, maxScale: 4.0,
               child: Hero(
-                tag: imagePath, 
-                child: kIsWeb ? Image.network(imagePath, fit: BoxFit.contain) : Image.file(File(imagePath), fit: BoxFit.contain),
+                tag: widget.imagePath, 
+                child: kIsWeb ? Image.network(widget.imagePath, fit: BoxFit.contain) : Image.file(File(widget.imagePath), fit: BoxFit.contain),
               ),
             ),
           ),
@@ -535,7 +662,7 @@ class FullScreenImageScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     // ΤΟ ΜΑΓΙΚΟ WIDGET ΠΟΥ ΣΟΥ ΕΠΙΤΡΕΠΕΙ ΝΑ ΚΑΝΕΙΣ ΑΝΤΙΓΡΑΦΗ (COPY)
                     SelectableText(
-                      ocrText.trim().isNotEmpty ? ocrText : "Δεν εντοπίστηκε κείμενο στην εικόνα.",
+                      _currentOcrText.trim().isNotEmpty ? _currentOcrText : "Δεν εντοπίστηκε κείμενο στην εικόνα.",
                       style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5),
                     ),
                   ],
