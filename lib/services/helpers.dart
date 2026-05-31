@@ -112,6 +112,25 @@ Future<String> preprocessImageForOCR(String originalPath) async {
 String restoreGreekText(String text) {
   if (text.trim().isEmpty) return text;
 
+  // Detect if the text is predominantly English to prevent mangling English documents
+  final List<String> englishStopWords = [
+    'the', 'and', 'of', 'to', 'for', 'are', 'with', 'this', 'that', 'have',
+    'from', 'you', 'your', 'not', 'but', 'all', 'they', 'been', 'were',
+    'was', 'is', 'it', 'has', 'every'
+  ];
+  int englishWordCount = 0;
+  final RegExp wordOnlyRegExp = RegExp(r'\b[a-zA-Z]+\b');
+  final stopWordMatches = wordOnlyRegExp.allMatches(text.toLowerCase());
+  for (final match in stopWordMatches) {
+    if (englishStopWords.contains(match.group(0))) {
+      englishWordCount++;
+    }
+  }
+  if (englishWordCount >= 2) {
+    // Predominantly English document: skip Greek restoration to preserve correct English spelling
+    return text;
+  }
+
   // 1. Common Greek/Greeklish visual word mappings
   final Map<String, String> wordReplacements = {
     r'\bLari\b': 'Γιατί',
