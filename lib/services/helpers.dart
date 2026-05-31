@@ -305,28 +305,13 @@ Future<String> performOCR(String imagePath) async {
     return "Το OCR λειτουργεί μόνο στην Android/iOS συσκευή σου!";
   }
 
-  String pathToProcess = imagePath;
-  bool isTemp = false;
-  try {
-    pathToProcess = await preprocessImageForOCR(imagePath);
-    isTemp = true;
-  } catch (e) {
-    print("Σφάλμα προεπεξεργασίας εικόνας: $e");
-  }
-
-  final inputImage = InputImage.fromFilePath(pathToProcess);
+  // Bypass the slow pure-Dart image preprocessor to restore instant OCR performance (< 1 second)
+  // and maintain natural, crisp character shapes on physical paper scans.
+  final inputImage = InputImage.fromFilePath(imagePath);
   final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
   final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
   final extractedText = recognizedText.text;
   textRecognizer.close();
-
-  if (isTemp && pathToProcess != imagePath) {
-    try {
-      await File(pathToProcess).delete();
-    } catch (e) {
-      print("Σφάλμα διαγραφής προσωρινού αρχείου: $e");
-    }
-  }
 
   // Parse Latin visual characters back into proper Greek
   return restoreGreekText(extractedText);
