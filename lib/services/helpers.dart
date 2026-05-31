@@ -215,7 +215,38 @@ String restoreGreekText(String text) {
         case 'a': translatedWord += 'α'; break;
         case 'b': translatedWord += 'β'; break;
         case 'v': translatedWord += 'ν'; break;
-        case 'u': translatedWord += 'μ'; break;
+        case 'u':
+          // Smart lookahead/lookbehind context check for Greek upsilon (υ) vs Greek mu (μ).
+          bool followedByVowel = false;
+          if (i < token.length - 1) {
+            final nextChar = token[i + 1].toLowerCase();
+            final vowels = {'a', 'e', 'i', 'o', 'y', 'α', 'ε', 'ι', 'ο', 'η', 'ω', 'ά', 'έ', 'ί', 'ό', 'ύ', 'ώ'};
+            if (vowels.contains(nextChar)) {
+              followedByVowel = true;
+            }
+          }
+          if (followedByVowel) {
+            translatedWord += 'μ';
+          } else {
+            translatedWord += 'υ';
+          }
+          break;
+        case 'U':
+          // Smart lookahead/lookbehind context check for capital Greek upsilon (Υ) vs Greek mu (Μ).
+          bool followedByVowel = false;
+          if (i < token.length - 1) {
+            final nextChar = token[i + 1].toLowerCase();
+            final vowels = {'a', 'e', 'i', 'o', 'y', 'α', 'ε', 'ι', 'ο', 'η', 'ω', 'ά', 'έ', 'ί', 'ό', 'ύ', 'ώ'};
+            if (vowels.contains(nextChar)) {
+              followedByVowel = true;
+            }
+          }
+          if (followedByVowel) {
+            translatedWord += 'Μ';
+          } else {
+            translatedWord += 'Υ';
+          }
+          break;
         case 'p': translatedWord += 'ρ'; break;
         case 'k': translatedWord += 'κ'; break;
         case 'o': translatedWord += 'ο'; break;
@@ -228,6 +259,8 @@ String restoreGreekText(String text) {
         case 'y': translatedWord += 'γ'; break;
         case 'x': translatedWord += 'χ'; break;
         case 'L': translatedWord += 'ι'; break;
+        case 'i': translatedWord += 'ι'; break;
+        case 'I': translatedWord += 'Ι'; break;
         case 'À': translatedWord += 'λ'; break;
         case 'ô': translatedWord += 'δ'; break;
         case 'é': translatedWord += 'έ'; break;
@@ -261,12 +294,28 @@ Future<String> performOCR(String imagePath) async {
     return "Το OCR λειτουργεί μόνο στην Android/iOS συσκευή σου!";
   }
 
-  // Run ML Kit text recognition directly on the original raw high-resolution image.
-  final inputImage = InputImage.fromFilePath(imagePath);
+  String pathToProcess = imagePath;
+  bool isTemp = false;
+  try {
+    pathToProcess = await preprocessImageForOCR(imagePath);
+    isTemp = true;
+  } catch (e) {
+    print("Σφάλμα προεπεξεργασίας εικόνας: $e");
+  }
+
+  final inputImage = InputImage.fromFilePath(pathToProcess);
   final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
   final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
   final extractedText = recognizedText.text;
   textRecognizer.close();
+
+  if (isTemp && pathToProcess != imagePath) {
+    try {
+      await File(pathToProcess).delete();
+    } catch (e) {
+      print("Σφάλμα διαγραφής προσωρινού αρχείου: $e");
+    }
+  }
 
   // Parse Latin visual characters back into proper Greek
   return restoreGreekText(extractedText);

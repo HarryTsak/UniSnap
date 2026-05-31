@@ -19,4 +19,21 @@ void main() {
     expect(result, contains('• "Διαχείριση Δεδομένων και Γνώσεων'));
     expect(result, contains('Ένα βήμα (6 ECTS) πιο κοντά στο πτυχ'));
   });
+
+  test('smart upsilon-vs-mu heuristic correctly restores common words', () {
+    // 1. 'touG' should be restored to 'τους' (u -> υ because followed by G/ς which is consonant)
+    expect(restoreGreekText('touG'), equals('τους'));
+
+    // 2. 'uou' should be restored to 'μου' (first u -> μ because followed by vowel o, second u -> υ)
+    expect(restoreGreekText('uou'), equals('μου'));
+
+    // 3. 'Kupiakn' should be restored to 'Kυριακη' (u -> υ because followed by p/ρ consonant)
+    expect(restoreGreekText('Kupiakn'), equals('Kυριακη'));
+
+    // 4. 'Maiou' should be restored to 'Mαιου' (u -> υ because it is at the end of the word, i -> ι)
+    expect(restoreGreekText('Maiou'), equals('Mαιου'));
+
+    // 5. 'auto' should be restored to 'αυτο' (u -> υ because followed by t/τ consonant)
+    expect(restoreGreekText('auto'), equals('αυτο'));
+  });
 }
