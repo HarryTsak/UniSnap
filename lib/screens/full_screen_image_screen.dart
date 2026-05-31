@@ -272,6 +272,70 @@ class _FullScreenImageScreenState extends State<FullScreenImageScreen> {
     );
   }
 
+  void _confirmDeleteImage() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Διαγραφή Snap;"),
+          content: const Text("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το Snap; Αυτή η ενέργεια δεν αναιρείται."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Ακύρωση", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () async {
+                for (var topic in globalUserTopics) {
+                  List<dynamic> images = topic['images'];
+                  int targetIndex = -1;
+                  for (int i = 0; i < images.length; i++) {
+                    if (images[i]['path'] == widget.imagePath) {
+                      targetIndex = i;
+                      break;
+                    }
+                  }
+                  if (targetIndex != -1) {
+                    images.removeAt(targetIndex);
+                    topic['images'] = images;
+                    break;
+                  }
+                }
+                await saveData();
+
+                if (!kIsWeb) {
+                  try {
+                    final file = File(widget.imagePath);
+                    if (await file.exists()) {
+                      await file.delete();
+                    }
+                  } catch (e) {
+                    print("Error deleting image file: $e");
+                  }
+                }
+
+                if (mounted) {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Pop screen back to topic details
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Το Snap διαγράφηκε επιτυχώς.'),
+                      backgroundColor: Colors.grey,
+                    ),
+                  );
+                }
+              },
+              child: const Text("Διαγραφή", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildImageContainer() {
     return InteractiveViewer(
       panEnabled: true,
@@ -346,6 +410,13 @@ class _FullScreenImageScreenState extends State<FullScreenImageScreen> {
         backgroundColor: Colors.black,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+            tooltip: "Διαγραφή",
+            onPressed: _confirmDeleteImage,
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _isReScanning ? null : _reRunOCR,

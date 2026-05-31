@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/helpers.dart';
+import '../global_state.dart';
 
 // -------------------------------------------------------------
 // ΟΘΟΝΗ: ΠΡΟΒΟΛΗ ΣΗΜΕΙΩΣΗΣ ΣΑΝ NOTEPAD (Note View Screen)
@@ -74,9 +75,16 @@ class _NoteViewScreenState extends State<NoteViewScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
               onPressed: () async {
-                List<Map<String, String>> notesList = List<Map<String, String>>.from(widget.folder['notes']);
-                notesList.removeAt(widget.noteIndex);
-                widget.folder['notes'] = notesList;
+                for (var folder in globalUserNotes) {
+                  if (folder['category'] == widget.folder['category']) {
+                    List<dynamic> notes = List<dynamic>.from(folder['notes'] ?? []);
+                    if (widget.noteIndex >= 0 && widget.noteIndex < notes.length) {
+                      notes.removeAt(widget.noteIndex);
+                      folder['notes'] = notes;
+                    }
+                    break;
+                  }
+                }
                 await saveData();
                 if (mounted) {
                   Navigator.pop(context); // Close dialog
@@ -110,12 +118,19 @@ class _NoteViewScreenState extends State<NoteViewScreen> {
       _currentContent = _textController.text;
       _isEditing = false;
       
-      List<Map<String, String>> notesList = List<Map<String, String>>.from(widget.folder['notes']);
-      notesList[widget.noteIndex] = {
-        "content": _currentContent,
-        "createdAt": widget.note['createdAt'] ?? DateTime.now().toIso8601String(),
-      };
-      widget.folder['notes'] = notesList;
+      for (var folder in globalUserNotes) {
+        if (folder['category'] == widget.folder['category']) {
+          List<dynamic> notes = List<dynamic>.from(folder['notes'] ?? []);
+          if (widget.noteIndex >= 0 && widget.noteIndex < notes.length) {
+            notes[widget.noteIndex] = {
+              "content": _currentContent,
+              "createdAt": widget.note['createdAt'] ?? DateTime.now().toIso8601String(),
+            };
+            folder['notes'] = notes;
+          }
+          break;
+        }
+      }
     });
 
     await saveData();
