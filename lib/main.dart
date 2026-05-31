@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'global_state.dart';
 import 'services/helpers.dart';
-import 'services/notification_service.dart';
 import 'screens/camera_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await requestPermissions();
   await loadData();
-  await NotificationService.instance.init();
   runApp(const UniSnapApp());
 }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../global_state.dart';
 import '../services/helpers.dart';
-import '../services/notification_service.dart';
 
 // -------------------------------------------------------------
 // ΟΘΟΝΗ 3: ΡΥΘΜΙΣΕΙΣ (Settings Screen)
@@ -30,28 +29,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() {
                 selectedLanguage = selectedLanguage == 'Αυτόματο' ? 'Ελληνικά' : 'Αυτόματο';
               });
-            },
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            activeColor: Colors.cyan,
-            secondary: const Icon(Icons.event_available, color: Colors.blueGrey),
-            title: const Text("Αυτόματη Υπενθύμιση"),
-            subtitle: Text(
-              autoReminderEnabled.value
-                  ? "1 ημέρα πριν την προθεσμία"
-                  : "Απενεργοποιημένη",
-            ),
-            value: autoReminderEnabled.value,
-            onChanged: (value) async {
-              setState(() {});
-              autoReminderEnabled.value = value;
-              await saveAutoReminder(value);
-
-              // If disabled, cancel all pending notifications
-              if (!value) {
-                await NotificationService.instance.cancelAllNotifications();
-              }
             },
           ),
         ],

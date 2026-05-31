@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../global_state.dart';
 import '../services/helpers.dart';
-import '../services/date_extractor.dart';
-import '../services/notification_service.dart';
 import 'topic_details_screen.dart';
 
 // -------------------------------------------------------------
@@ -27,33 +25,7 @@ class GalleryScreen extends StatefulWidget {
 class _GalleryScreenState extends State<GalleryScreen> {
   final TextEditingController _topicController = TextEditingController();
 
-  void _scheduleRemindersIfNeeded(String ocrText, String courseName) {
-    if (!autoReminderEnabled.value) return;
 
-    final dates = extractDatesFromText(ocrText);
-    if (dates.isEmpty) return;
-
-    for (final date in dates) {
-      final dateStr = '${date.day}/${date.month}/${date.year}';
-      final notifId = NotificationService.generateId(courseName, date);
-      NotificationService.instance.scheduleReminder(
-        id: notifId,
-        courseName: courseName,
-        deadlineDate: date,
-        dateString: dateStr,
-      );
-    }
-
-    // Show a feedback snackbar if dates were found
-    if (mounted && dates.isNotEmpty) {
-      final dateCount = dates.length;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('📅 $dateCount ${dateCount == 1 ? 'προθεσμία εντοπίστηκε' : 'προθεσμίες εντοπίστηκαν'}! Θα λάβεις υπενθύμιση.'),
-        duration: const Duration(seconds: 3),
-        backgroundColor: Colors.orange.shade700,
-      ));
-    }
-  }
 
   void _showAddTopicDialog() {
     showDialog(
@@ -99,7 +71,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       });
                     });
                     await saveData();
-                    _scheduleRemindersIfNeeded(widget.ocrTextToSave ?? "", courseName);
                     _topicController.clear();
 
                     if (mounted) {
@@ -314,7 +285,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           topic['images'] = updatedImages;
                         });
                         await saveData();
-                        _scheduleRemindersIfNeeded(widget.ocrTextToSave ?? "", topic['course']);
 
                         if (mounted) {
                           Navigator.pop(context); // Close GalleryScreen (returns to CameraScreen)
