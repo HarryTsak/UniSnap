@@ -71,17 +71,8 @@ class NotificationService {
   }) async {
     if (!_isInitialized || _plugin == null) return;
 
-    // Schedule for 1 day before at 09:00
-    final reminderDate = DateTime(
-      deadlineDate.year,
-      deadlineDate.month,
-      deadlineDate.day - 1,
-      9,
-      0,
-    );
-
-    // If the reminder time has already passed, don't schedule
-    if (reminderDate.isBefore(DateTime.now())) return;
+    // INSTANT VIDEO DEMO TESTING: Schedule 2 seconds into the future!
+    final reminderDate = DateTime.now().add(const Duration(seconds: 2));
 
     try {
       final tzReminderDate = tz.TZDateTime.from(reminderDate, tz.local);
