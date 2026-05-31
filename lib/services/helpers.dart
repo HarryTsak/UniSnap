@@ -288,6 +288,17 @@ String restoreGreekText(String text) {
         case 'X': translatedWord += 'χ'; break;
         case 'G': translatedWord += 'ς'; break;
         case 'V': translatedWord += 'ν'; break;
+        case '®': translatedWord += 'θ'; break;
+        case 'ð': translatedWord += 'δ'; break;
+        case 'đ': translatedWord += 'δ'; break;
+        case 'ő': translatedWord += 'δ'; break;
+        case 'Ğ': translatedWord += 'ξ'; break;
+        case 'č': translatedWord += 'ξ'; break;
+        case 'ß': translatedWord += 'β'; break;
+        case 'ě': translatedWord += 'ε'; break;
+        case 'š': translatedWord += 'ς'; break;
+        case 'ž': translatedWord += 'ζ'; break;
+        case 'ø': translatedWord += 'φ'; break;
         default:
           translatedWord += char;
       }

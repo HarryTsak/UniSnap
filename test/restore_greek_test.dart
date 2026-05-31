@@ -55,5 +55,10 @@ void main() {
 
     // 5. 'suyxpovns' must correctly map u to υ (upsilon) because y is a Greek consonant (γ)
     expect(restoreGreekText('suyxpovns'), equals('συγχρονης'));
+
+    // 6. Special accented characters representing Greek letters
+    expect(restoreGreekText('etEĞEpyaTtóv'), equals('ετεξεργαττόν'));
+    expect(restoreGreekText('ðarnpήoel'), equals('δατηρήοεl'));
+    expect(restoreGreekText('aKoÀoU®iaKÓV'), equals('αKολοΥθιαKÓν'));
   });
 }
