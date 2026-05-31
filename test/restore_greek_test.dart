@@ -61,4 +61,19 @@ void main() {
     expect(restoreGreekText('ðarnpήoel'), equals('δατηρήοεl'));
     expect(restoreGreekText('aKoÀoU®iaKÓV'), equals('αKολοΥθιαKÓν'));
   });
+
+  test('bilingual or mixed text with out-of-order and to is not bypassed', () {
+    const input = 'από το 2003 και μετά (out-of-order, OoO)';
+    final result = restoreGreekText(input);
+    // Since it contains native Greek letters, it should not bypass Greek restoration!
+    expect(result, contains('από'));
+    expect(result, contains('οοο'));
+  });
+
+  test('fully English document is bypassed successfully', () {
+    const input = 'the quick brown fox jumps over the lazy dog and with that they were done';
+    final result = restoreGreekText(input);
+    // Should be completely bypassed and returned exactly as-is
+    expect(result, equals(input));
+  });
 }

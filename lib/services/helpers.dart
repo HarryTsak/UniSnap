@@ -112,23 +112,28 @@ Future<String> preprocessImageForOCR(String originalPath) async {
 String restoreGreekText(String text) {
   if (text.trim().isEmpty) return text;
 
-  // Detect if the text is predominantly English to prevent mangling English documents
-  final List<String> englishStopWords = [
-    'the', 'and', 'of', 'to', 'for', 'are', 'with', 'this', 'that', 'have',
-    'from', 'you', 'your', 'not', 'but', 'all', 'they', 'been', 'were',
-    'was', 'is', 'it', 'has', 'every'
-  ];
-  int englishWordCount = 0;
-  final RegExp wordOnlyRegExp = RegExp(r'\b[a-zA-Z]+\b');
-  final stopWordMatches = wordOnlyRegExp.allMatches(text.toLowerCase());
-  for (final match in stopWordMatches) {
-    if (englishStopWords.contains(match.group(0))) {
-      englishWordCount++;
+  // Detect if the text is predominantly English to prevent mangling English documents.
+  // If the text contains any native Greek characters (like on HyperOS NPU outputs), it is definitely
+  // a Greek/bilingual scan, so we should NOT bypass the Greek Restoration Engine.
+  final RegExp greekLetterRegExp = RegExp(r'[\u0370-\u03FF]');
+  if (!greekLetterRegExp.hasMatch(text)) {
+    final List<String> englishStopWords = [
+      'the', 'and', 'for', 'are', 'with', 'this', 'that', 'have', 'from', 'you',
+      'your', 'not', 'but', 'all', 'they', 'been', 'were', 'was', 'is', 'it',
+      'has', 'every', 'their', 'there'
+    ];
+    int englishWordCount = 0;
+    final RegExp wordOnlyRegExp = RegExp(r'\b[a-zA-Z]+\b');
+    final stopWordMatches = wordOnlyRegExp.allMatches(text.toLowerCase());
+    for (final match in stopWordMatches) {
+      if (englishStopWords.contains(match.group(0))) {
+        englishWordCount++;
+      }
     }
-  }
-  if (englishWordCount >= 2) {
-    // Predominantly English document: skip Greek restoration to preserve correct English spelling
-    return text;
+    if (englishWordCount >= 3) {
+      // Predominantly English document: skip Greek restoration to preserve correct English spelling
+      return text;
+    }
   }
 
   // 1. Common Greek/Greeklish visual word mappings
