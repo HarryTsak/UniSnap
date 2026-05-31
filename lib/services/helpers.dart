@@ -188,7 +188,8 @@ String restoreGreekText(String text) {
     // Preserve standard English acronyms/vocabulary (e.g. ECTS, Welcome, AUEB, COMPUTER)
     final String lettersOnly = token.replaceAll(RegExp(r'[^a-zA-Z]'), '').toLowerCase();
     final List<String> englishPreserve = [
-      'welcome', 'computer', 'graphics', 'group', 'ects', 'aueb', 'to', 'the', 'project'
+      'welcome', 'computer', 'graphics', 'group', 'ects', 'aueb', 'to', 'the', 'project',
+      'gpu', 'gpus', 'gpgpu', 'gpgpus', 'nvidia', 'amd', 'intel', 'cpu', 'cpus'
     ];
 
     if (lettersOnly.isEmpty || englishPreserve.contains(lettersOnly)) {
@@ -220,7 +221,7 @@ String restoreGreekText(String text) {
           bool followedByVowel = false;
           if (i < token.length - 1) {
             final nextChar = token[i + 1].toLowerCase();
-            final vowels = {'a', 'e', 'i', 'o', 'y', 'α', 'ε', 'ι', 'ο', 'η', 'ω', 'ά', 'έ', 'ί', 'ό', 'ύ', 'ώ'};
+            final vowels = {'a', 'e', 'i', 'o', 'u', 'w', 'h', 'n', 'l', 'L', 'α', 'ε', 'ι', 'ο', 'η', 'ω', 'υ', 'ά', 'έ', 'ί', 'ό', 'ύ', 'ώ'};
             if (vowels.contains(nextChar)) {
               followedByVowel = true;
             }
@@ -236,7 +237,7 @@ String restoreGreekText(String text) {
           bool followedByVowel = false;
           if (i < token.length - 1) {
             final nextChar = token[i + 1].toLowerCase();
-            final vowels = {'a', 'e', 'i', 'o', 'y', 'α', 'ε', 'ι', 'ο', 'η', 'ω', 'ά', 'έ', 'ί', 'ό', 'ύ', 'ώ'};
+            final vowels = {'a', 'e', 'i', 'o', 'u', 'w', 'h', 'n', 'l', 'L', 'α', 'ε', 'ι', 'ο', 'η', 'ω', 'υ', 'ά', 'έ', 'ί', 'ό', 'ύ', 'ώ'};
             if (vowels.contains(nextChar)) {
               followedByVowel = true;
             }
@@ -257,6 +258,15 @@ String restoreGreekText(String text) {
         case 'h': translatedWord += 'η'; break;
         case 'w': translatedWord += 'ω'; break;
         case 'y': translatedWord += 'γ'; break;
+        case 'z': translatedWord += 'σ'; break;
+        case 's':
+          if (i == token.length - 1) {
+            translatedWord += 'ς';
+          } else {
+            translatedWord += 'σ';
+          }
+          break;
+        case 'S': translatedWord += 'Σ'; break;
         case 'x': translatedWord += 'χ'; break;
         case 'L': translatedWord += 'ι'; break;
         case 'i': translatedWord += 'ι'; break;
@@ -269,9 +279,10 @@ String restoreGreekText(String text) {
         case 'í': translatedWord += 'ί'; break;
         case 'ó': translatedWord += 'ό'; break;
         case 'Z': translatedWord += 'Σ'; break;
-        case 'A': translatedWord += 'Δ'; break;
+        case 'A': translatedWord += 'Α'; break;
+        case 'D': translatedWord += 'Δ'; break;
         case 'B': translatedWord += 'β'; break;
-        case 'T': translatedWord += 'π'; break;
+        case 'T': translatedWord += 'τ'; break;
         case 'O': translatedWord += 'ο'; break;
         case 'E': translatedWord += 'ε'; break;
         case 'X': translatedWord += 'χ'; break;

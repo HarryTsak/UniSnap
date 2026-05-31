@@ -36,4 +36,24 @@ void main() {
     // 5. 'auto' should be restored to 'αυτο' (u -> υ because followed by t/τ consonant)
     expect(restoreGreekText('auto'), equals('αυτο'));
   });
+
+  test('advanced Greek OCR mapping and English GPU protection', () {
+    // 1. Core parallel-computing acronyms must be preserved exactly
+    expect(restoreGreekText('GPU'), equals('GPU'));
+    expect(restoreGreekText('GPGPU'), equals('GPGPU'));
+    expect(restoreGreekText('NVIDIA'), equals('NVIDIA'));
+
+    // 2. Latin 'A' must map to Greek capital 'Α' (Alpha) instead of 'Δ' (Delta)
+    expect(restoreGreekText('Apxitektovikn'), equals('Αρχιτεκτονικη'));
+
+    // 3. Latin 'D' must map to Greek capital 'Δ' (Delta)
+    expect(restoreGreekText('Dedomena'), equals('Δεdοmεηα'));
+
+    // 4. Latin 'T' must map to Greek lowercase 't'/'T' -> 'τ' (Tau) instead of 'π' (Pi)
+    expect(restoreGreekText('TLO'), equals('πιο')); // Word replacements still work for TLO
+    expect(restoreGreekText('T'), equals('τ')); // Single T maps to τ
+
+    // 5. 'suyxpovns' must correctly map u to υ (upsilon) because y is a Greek consonant (γ)
+    expect(restoreGreekText('suyxpovns'), equals('συγχρονης'));
+  });
 }
